@@ -3,9 +3,9 @@ import smtplib
 from email.mime.text import MIMEText
 
 # --- CONFIG ---
-EMAIL_USER = "tonemail@gmail.com"
-EMAIL_PASS = "mot_de_passe_app"
-EMAIL_TO = "tonemail@gmail.com"
+EMAIL_USER = "cyprien2jerph@gmail.com"
+EMAIL_PASS = "exwr endx fval olar "
+EMAIL_TO = "cyprien2jerph@gmail.com"
 
 TICKER = "NVDA"
 
