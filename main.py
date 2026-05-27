@@ -1,4 +1,11 @@
+import os
+EMAIL_USER = os.getenv("EMAIL_USER")
+EMAIL_PASS = os.getenv("EMAIL_PASS")
+EMAIL_TO = os.getenv("EMAIL_TO")
 import yfinance as yf
+if data is None or len(data) < 2:
+    print("Pas assez de données marché")
+    exit()
 import smtplib
 from email.mime.text import MIMEText
 
@@ -12,8 +19,12 @@ TICKER = "NVDA"
 # --- récupérer prix ---
 data = yf.download(TICKER, period="1d", interval="5m")
 
-current_price = data["Close"].iloc[-1]
-previous_price = data["Close"].iloc[0]
+try:
+    current_price = data["Close"].iloc[-1]
+    previous_price = data["Close"].iloc[0]
+except:
+    print("Erreur lecture données")
+    exit()
 
 change = ((current_price - previous_price) / previous_price) * 100
 
