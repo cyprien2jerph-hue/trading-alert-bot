@@ -1,33 +1,48 @@
 import yfinance as yf
+import smtplib
+from email.mime.text import MIMEText
 
-WATCHLIST = {
-    "NVDA": 4,
-    "STM.PA": 5,
-    "SOI.PA": 5
-}
+# --- CONFIG ---
+EMAIL_USER = "tonemail@gmail.com"
+EMAIL_PASS = "mot_de_passe_app"
+EMAIL_TO = "tonemail@gmail.com"
 
-def get_move(ticker):
-    data = yf.download(ticker, period="2d", interval="1h")
-    if len(data) < 2:
-        return None
+TICKER = "NVDA"
 
-    old = data["Close"].iloc[-2]
-    new = data["Close"].iloc[-1]
+# --- récupérer prix ---
+data = yf.download(TICKER, period="1d", interval="5m")
 
-    return ((new - old) / old) * 100
+current_price = data["Close"].iloc[-1]
+previous_price = data["Close"].iloc[0]
 
+change = ((current_price - previous_price) / previous_price) * 100
 
-for ticker, seuil in WATCHLIST.items():
-    try:
-        move = get_move(ticker)
+print(f"{TICKER} variation: {change:.2f}%")
 
-        if move is None:
-            continue
+# --- condition d'alerte ---
+if abs(change) >= 2.5:
+    subject = f"ALERTE {TICKER} {change:.2f}%"
 
-        print(ticker, "variation :", round(move, 2), "%")
+    body = f"""
+    Mouvement important détecté :
 
-        if abs(move) >= seuil:
-            print("🚨 ALERTE :", ticker)
+    Action : {TICKER}
+    Variation : {change:.2f}%
 
-    except Exception as e:
-        print("Erreur :", ticker, e)
+    Prix actuel : {current_price}
+    """
+
+    msg = MIMEText(body)
+    msg["Subject"] = subject
+    msg["From"] = EMAIL_USER
+    msg["To"] = EMAIL_TO
+
+    server = smtplib.SMTP("smtp.gmail.com", 587)
+    server.starttls()
+    server.login(EMAIL_USER, EMAIL_PASS)
+    server.sendmail(EMAIL_USER, EMAIL_TO, msg.as_string())
+    server.quit()
+
+    print("Email envoyé")
+else:
+    print("Pas de signal important")
