@@ -1,0 +1,52 @@
+import yfinance as yf
+import smtplib
+from email.mime.text import MIMEText
+
+WATCHLIST = {
+    "NVDA": 4,   # alerte si +/- 4%
+    "STM": 5,
+    "SOI.PA": 5
+}
+
+EMAIL = "tonmail@gmail.com"
+PASSWORD = "mot_de_passe_application_gmail"
+
+def send_mail(title, body):
+    msg = MIMEText(body)
+    msg["Subject"] = title
+    msg["From"] = EMAIL
+    msg["To"] = EMAIL
+
+    with smtplib.SMTP_SSL("smtp.gmail.com", 465) as smtp:
+        smtp.login(EMAIL, PASSWORD)
+        smtp.send_message(msg)
+
+def get_move(ticker):
+    data = yf.download(ticker, period="2d", interval="1h")
+    if len(data) < 2:
+        return None
+
+    last_close = data["Close"].iloc[-2]
+    current = data["Close"].iloc[-1]
+
+    return ((current - last_close) / last_close) * 100
+
+for ticker, threshold in WATCHLIST.items():
+    try:
+        move = get_move(ticker)
+
+        if move is None:
+            continue
+
+        print(ticker, move)
+
+        if abs(move) >= threshold:
+            direction = "hausse" if move > 0 else "baisse"
+
+            send_mail(
+                f"ALERTE {ticker}",
+                f"{ticker} en {direction} de {move:.2f}%"
+            )
+
+    except Exception as e:
+        print("Erreur:", ticker, e)
