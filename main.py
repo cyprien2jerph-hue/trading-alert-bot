@@ -3,6 +3,7 @@ import smtplib
 from email.mime.multipart import MIMEMultipart
 from email.mime.text import MIMEText
 from datetime import datetime
+from zoneinfo import ZoneInfo
 import yfinance as yf
 
 TICKERS = {
@@ -31,6 +32,15 @@ THRESHOLDS = {
 EMAIL_USER = os.environ["EMAIL_USER"]
 EMAIL_TO = os.environ["EMAIL_TO"]
 EMAIL_PASS = os.environ["EMAIL_PASS"]
+
+
+def is_market_hours():
+    """Retourne False entre 21h et 5h, heure de Paris."""
+    now_paris = datetime.now(ZoneInfo("Europe/Paris"))
+    hour = now_paris.hour
+    if hour >= 21 or hour < 5:
+        return False
+    return True
 
 
 def send_mail(title, html_body):
@@ -74,7 +84,7 @@ def get_daily_move(ticker):
 
 
 def build_html(results, alerts):
-    now = datetime.now().strftime("%d/%m/%Y %H:%M")
+    now = datetime.now(ZoneInfo("Europe/Paris")).strftime("%d/%m/%Y %H:%M")
 
     rows = ""
     for r in results:
@@ -140,6 +150,10 @@ def build_html(results, alerts):
 
 
 def main():
+    if not is_market_hours():
+        print("Hors plage horaire (21h-5h Paris), pas d'envoi.")
+        return
+
     results = []
     alerts = []
 
@@ -159,7 +173,6 @@ def main():
             direction = "hausse" if move > 0 else "baisse"
             alerts.append(f"{name} ({ticker}) en {direction} de {move:.2f}%")
 
-    # Tri par variation décroissante
     results.sort(key=lambda x: x["move"], reverse=True)
 
     html_body = build_html(results, alerts)
