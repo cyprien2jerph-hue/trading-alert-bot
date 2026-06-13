@@ -1,59 +1,98 @@
-import os
-EMAIL_USER = os.getenv("EMAIL_USER")
-EMAIL_PASS = os.getenv("EMAIL_PASS")
-EMAIL_TO = os.getenv("EMAIL_TO")
 import yfinance as yf
-if data is None or len(data) < 2:
-    print("Pas assez de données marché")
-    exit()
+import pandas as pd
+import os
 import smtplib
 from email.mime.text import MIMEText
 
-# --- CONFIG ---
-EMAIL_USER = "cyprien2jerph@gmail.com"
-EMAIL_PASS = "exwr endx fval olar "
-EMAIL_TO = "cyprien2jerph@gmail.com"
+# =========================
+# CONFIG
+# =========================
 
-TICKER = "NVDA"
+WATCHLIST = {
+    "NVDA": 3,
+    "STM.PA": 4,
+    "SOI.PA": 5,
+    "ASML.AS": 3,
+    "SU.PA": 3  # Schneider Electric
+}
 
-# --- récupérer prix ---
-data = yf.download(TICKER, period="1d", interval="5m")
+EMAIL_USER = os.getenv("EMAIL_USER")
+EMAIL_PASS = os.getenv("EMAIL_PASS")
+EMAIL_TO = os.getenv("EMAIL_TO")
 
-try:
-    current_price = data["Close"].iloc[-1]
-    previous_price = data["Close"].iloc[0]
-except:
-    print("Erreur lecture données")
-    exit()
+USE_EMAIL = EMAIL_USER is not None and EMAIL_PASS is not None
 
-change = ((current_price - previous_price) / previous_price) * 100
+# =========================
+# EMAIL
+# =========================
 
-print(f"{TICKER} variation: {change:.2f}%")
-
-# --- condition d'alerte ---
-if abs(change) >= 2.5:
-    subject = f"ALERTE {TICKER} {change:.2f}%"
-
-    body = f"""
-    Mouvement important détecté :
-
-    Action : {TICKER}
-    Variation : {change:.2f}%
-
-    Prix actuel : {current_price}
-    """
+def send_mail(subject, body):
+    if not USE_EMAIL:
+        print("[EMAIL DISABLED]")
+        print(subject)
+        print(body)
+        return
 
     msg = MIMEText(body)
     msg["Subject"] = subject
     msg["From"] = EMAIL_USER
     msg["To"] = EMAIL_TO
 
-    server = smtplib.SMTP("smtp.gmail.com", 587)
-    server.starttls()
-    server.login(EMAIL_USER, EMAIL_PASS)
-    server.sendmail(EMAIL_USER, EMAIL_TO, msg.as_string())
-    server.quit()
+    with smtplib.SMTP_SSL("smtp.gmail.com", 465) as smtp:
+        smtp.login(EMAIL_USER, EMAIL_PASS)
+        smtp.send_message(msg)
 
-    print("Email envoyé")
-else:
-    print("Pas de signal important")
+# =========================
+# DATA
+# =========================
+
+def get_daily_move(ticker):
+    try:
+        data = yf.download(ticker, period="5d", interval="1d", progress=False)
+
+        if data is None or len(data) < 2:
+            print(f"{ticker} -> pas assez de data")
+            return None
+
+        prev = data["Close"].iloc[-2]
+        last = data["Close"].iloc[-1]
+
+        change = ((last - prev) / prev) * 100
+
+        return float(change)
+
+    except Exception as e:
+        print(f"{ticker} erreur:", e)
+        return None
+
+# =========================
+# MAIN
+# =========================
+
+print("=== BOT START ===")
+
+for ticker, threshold in WATCHLIST.items():
+
+    move = get_daily_move(ticker)
+
+    if move is None:
+        continue
+
+    print(f"{ticker} : {move:.2f}%")
+
+    if abs(move) >= threshold:
+
+        direction = "HAUSSE" if move > 0 else "BAISSE"
+
+        subject = f"[ALERTE] {ticker} {direction} {move:.2f}%"
+        body = f"""
+Ticker: {ticker}
+Direction: {direction}
+Variation: {move:.2f}%
+
+Stratégie: momentum daily
+"""
+
+        send_mail(subject, body)
+
+print("=== BOT END ===")
