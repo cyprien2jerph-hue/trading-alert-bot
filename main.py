@@ -1,4 +1,5 @@
 import os
+import csv
 import smtplib
 from email.mime.multipart import MIMEMultipart
 from email.mime.text import MIMEText
@@ -29,6 +30,11 @@ THRESHOLDS = {
     "SOI.PA": 5,
 }
 
+# Heures (Paris) du récap complet quotidien
+RECAP_HOURS = [9, 18]
+
+HISTORY_FILE = "history.csv"
+
 EMAIL_USER = os.environ["EMAIL_USER"]
 EMAIL_TO = os.environ["EMAIL_TO"]
 EMAIL_PASS = os.environ["EMAIL_PASS"]
@@ -41,6 +47,12 @@ def is_market_hours():
     if hour >= 21 or hour < 5:
         return False
     return True
+
+
+def is_recap_time():
+    """True si l'heure actuelle (Paris) correspond à une heure de récap (fenêtre de 30 min)."""
+    now_paris = datetime.now(ZoneInfo("Europe/Paris"))
+    return now_paris.hour in RECAP_HOURS and now_paris.minute < 30
 
 
 def send_mail(title, html_body):
@@ -90,7 +102,21 @@ def get_daily_move(ticker):
         return None
 
 
-def build_html(results, alerts):
+def save_history(results, now_paris):
+    """Ajoute une ligne par ticker dans history.csv"""
+    file_exists = os.path.isfile(HISTORY_FILE)
+
+    with open(HISTORY_FILE, "a", newline="", encoding="utf-8") as f:
+        writer = csv.writer(f)
+        if not file_exists:
+            writer.writerow(["datetime", "ticker", "name", "price", "variation_pct"])
+
+        timestamp = now_paris.strftime("%Y-%m-%d %H:%M")
+        for r in results:
+            writer.writerow([timestamp, r["ticker"], r["name"], f"{r['price']:.2f}", f"{r['move']:.2f}"])
+
+
+def build_html(results, alerts, title_label):
     now = datetime.now(ZoneInfo("Europe/Paris")).strftime("%d/%m/%Y %H:%M")
 
     rows = ""
@@ -127,7 +153,7 @@ def build_html(results, alerts):
         <div style="max-width:600px; margin:0 auto; padding:24px;">
           <div style="background:#ffffff; border-radius:10px; overflow:hidden; box-shadow:0 1px 3px rgba(0,0,0,0.08);">
             <div style="background:#111827; padding:20px 24px;">
-              <h1 style="color:#fff; font-size:18px; margin:0;">📈 Scan Bourse FR</h1>
+              <h1 style="color:#fff; font-size:18px; margin:0;">📈 {title_label}</h1>
               <p style="color:#9ca3af; font-size:13px; margin:4px 0 0 0;">{now}</p>
             </div>
             <div style="padding:0 24px;">
@@ -161,6 +187,7 @@ def main():
         print("Hors plage horaire (21h-5h Paris), pas d'envoi.")
         return
 
+    now_paris = datetime.now(ZoneInfo("Europe/Paris"))
     results = []
     alerts = []
 
@@ -182,11 +209,21 @@ def main():
 
     results.sort(key=lambda x: x["move"], reverse=True)
 
-    html_body = build_html(results, alerts)
-    title = "📈 Scan bourse" + (" — ⚠️ ALERTE" if alerts else "")
+    # Sauvegarde dans l'historique à chaque exécution
+    save_history(results, now_paris)
 
-    send_mail(title, html_body)
-    print("\n=== MAIL ENVOYÉ ===")
+    recap = is_recap_time()
+
+    if alerts:
+        html_body = build_html(results, alerts, "Scan Bourse FR")
+        send_mail("📈 ALERTE — Scan bourse", html_body)
+        print("\n=== MAIL ALERTE ENVOYÉ ===")
+    elif recap:
+        html_body = build_html(results, alerts, "Récap quotidien — Scan Bourse FR")
+        send_mail("📊 Récap quotidien — Scan bourse", html_body)
+        print("\n=== MAIL RECAP ENVOYÉ ===")
+    else:
+        print("\n=== Pas d'alerte / pas l'heure du récap, aucun mail envoyé ===")
 
 
 if __name__ == "__main__":
