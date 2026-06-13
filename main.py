@@ -15,7 +15,7 @@ TICKERS = {
     "MC.PA": "LVMH",
     "AI.PA": "Air Liquide",
     "SAF.PA": "Safran",
-    "GLE.PA": "Société Générale"
+    "GLE.PA": "Société Générale",
     "SOI.PA": "Soitec",
     "EXA.PA": "Exail Technologies",
     "TEP.PA": "Teleperformance",
