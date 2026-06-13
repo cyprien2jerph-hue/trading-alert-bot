@@ -3,28 +3,7 @@ name: Bot bourse FR
 on:
   workflow_dispatch:
   schedule:
-    - cron: "0 */1 * * *"  # toutes les heures
-
-jobs:
-  run-bot:
-    runs-on: ubuntu-latest
-
-    steps:
-      - uses: actions/checkout@v4
-
-      - uses: actions/setup-python@v5
-        with:
-          python-version: "3.11"
-
-      - run: pip install -r requirements.txt
-
-      - run: python main.py
-name: Bot bourse FR
-
-on:
-  workflow_dispatch:
-  schedule:
-    - cron: "0 */1 * * *"  # toutes les heures
+    - cron: "0 */1 * * *"
 
 jobs:
   run-bot:
