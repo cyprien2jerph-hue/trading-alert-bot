@@ -17,7 +17,6 @@ TICKERS = {
     "SAF.PA": "Safran",
     "GLE.PA": "Société Générale"
     "SOI.PA": "Soitec",
-    "STM": "STMicroelectronics",
     "EXA.PA": "Exail Technologies",
     "TEP.PA": "Teleperformance",
     "OVH.PA": "OVHcloud",
