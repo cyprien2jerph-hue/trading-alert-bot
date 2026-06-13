@@ -8,7 +8,7 @@ from zoneinfo import ZoneInfo
 import yfinance as yf
 
 TICKERS = {
-    "STM": "STMicroelectronics",
+    "STMPA.PA": "STMicroelectronics",
     "AIR.PA": "Airbus",
     "HO.PA": "Thales",
     "CAP.PA": "Capgemini",
