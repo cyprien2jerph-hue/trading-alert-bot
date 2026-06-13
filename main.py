@@ -59,7 +59,7 @@ def get_daily_move(ticker):
     try:
         data = yf.download(
             ticker,
-            period="5d",
+            period="10d",
             interval="1d",
             progress=False,
             auto_adjust=True,
@@ -72,12 +72,19 @@ def get_daily_move(ticker):
         if hasattr(close, "iloc") and close.ndim > 1:
             close = close.iloc[:, 0]
 
+        close = close.dropna()
+
+        if len(close) < 2:
+            return None
+
         prev = float(close.iloc[-2])
         last = float(close.iloc[-1])
-        last_price = last
 
-        return ((last - prev) / prev) * 100, last_price
+        prev_date = close.index[-2].strftime("%d/%m")
+        last_date = close.index[-1].strftime("%d/%m")
+        print(f"{ticker}: comparaison {prev_date} -> {last_date}")
 
+        return ((last - prev) / prev) * 100, last
     except Exception as e:
         print(f"Erreur sur {ticker} : {e}")
         return None
