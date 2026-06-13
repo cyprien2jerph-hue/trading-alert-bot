@@ -5,7 +5,6 @@ import yfinance as yf
 
 TICKERS = {
     "STM": "STMicroelectronics",
-    "2CRSI.PA": "2CRSi",
     "SU.PA": "Schneider Electric",
     "AIR.PA": "Airbus",
     "HO.PA": "Thales",
