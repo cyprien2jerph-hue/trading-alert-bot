@@ -1,9 +1,9 @@
-name: Bot bourse
+name: Bot bourse FR
 
 on:
   workflow_dispatch:
   schedule:
-    - cron: "*/30 * * * *"  # toutes les 30 min (plus stable que 5 min)
+    - cron: "0 */1 * * *"  # toutes les heures
 
 jobs:
   run-bot:
