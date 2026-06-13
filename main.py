@@ -1,8 +1,7 @@
+import os
+import smtplib
+from email.mime.text import MIMEText
 import yfinance as yf
-
-# =========================
-# ACTIONS FRANÇAISES
-# =========================
 
 TICKERS = {
     "STM": "STMicroelectronics",
@@ -20,12 +19,31 @@ TICKERS = {
     "EXA.PA": "Exail Technologies",
     "TEP.PA": "Teleperformance",
     "OVH.PA": "OVHcloud",
-    "VLA.PA": "Valneva"
+    "VLA.PA": "Valneva",
 }
 
-# =========================
-# CALCUL VARIATION
-# =========================
+# Seuils d'alerte (en %) — optionnel, met None pour désactiver les alertes par titre
+THRESHOLDS = {
+    "NVDA": 4,
+    "STM": 5,
+    "SOI.PA": 5,
+}
+
+EMAIL_FROM = os.environ["EMAIL_FROM"]
+EMAIL_TO = os.environ["EMAIL_TO"]
+EMAIL_PASSWORD = os.environ["EMAIL_PASSWORD"]
+
+
+def send_mail(title, body):
+    msg = MIMEText(body)
+    msg["Subject"] = title
+    msg["From"] = EMAIL_FROM
+    msg["To"] = EMAIL_TO
+
+    with smtplib.SMTP_SSL("smtp.gmail.com", 465) as smtp:
+        smtp.login(EMAIL_FROM, EMAIL_PASSWORD)
+        smtp.send_message(msg)
+
 
 def get_daily_move(ticker):
     try:
@@ -34,13 +52,17 @@ def get_daily_move(ticker):
             period="5d",
             interval="1d",
             progress=False,
-            auto_adjust=True
+            auto_adjust=True,
         )
 
         if data is None or len(data) < 2:
             return None
 
         close = data["Close"]
+
+        # Gère le cas MultiIndex (plusieurs colonnes possibles selon version yfinance)
+        if hasattr(close, "iloc") and close.ndim > 1:
+            close = close.iloc[:, 0]
 
         prev = float(close.iloc[-2])
         last = float(close.iloc[-1])
@@ -51,47 +73,53 @@ def get_daily_move(ticker):
         print(f"Erreur sur {ticker} : {e}")
         return None
 
-# =========================
-# SCAN
-# =========================
 
-results = []
+def main():
+    results = []
+    alerts = []
 
-print("=== SCAN CAC / EURONEXT ===")
+    print("=== SCAN CAC / EURONEXT ===")
 
-for ticker, name in TICKERS.items():
+    for ticker, name in TICKERS.items():
+        move = get_daily_move(ticker)
 
-    move = get_daily_move(ticker)
+        if move is None:
+            continue
 
-    if move is None:
-        continue
+        results.append({"ticker": ticker, "name": name, "move": move})
+        print(f"{name} ({ticker}) : {move:.2f}%")
 
-    results.append({
-        "ticker": ticker,
-        "name": name,
-        "move": move
-    })
+        threshold = THRESHOLDS.get(ticker)
+        if threshold is not None and abs(move) >= threshold:
+            direction = "hausse" if move > 0 else "baisse"
+            alerts.append(f"{name} ({ticker}) en {direction} de {move:.2f}%")
 
-    print(f"{name} ({ticker}) : {move:.2f}%")
+    results.sort(key=lambda x: x["move"], reverse=True)
 
-# =========================
-# CLASSEMENT
-# =========================
+    print("\n=== TOP MOMENTUM ===")
+    for r in results[:5]:
+        print(f"{r['name']} | {r['ticker']} | {r['move']:.2f}%")
 
-results.sort(key=lambda x: x["move"], reverse=True)
+    print("\n=== FLOP MOMENTUM ===")
+    for r in results[-5:]:
+        print(f"{r['name']} | {r['ticker']} | {r['move']:.2f}%")
 
-print("\n=== TOP MOMENTUM ===")
+    # --- Construction du mail récap ---
+    lines = []
+    lines.append("=== TOUTES LES VALEURS ===")
+    for r in results:
+        lines.append(f"{r['name']} ({r['ticker']}) : {r['move']:.2f}%")
 
-for r in results[:5]:
-    print(
-        f"{r['name']} | {r['ticker']} | {r['move']:.2f}%"
-    )
+    if alerts:
+        lines.append("\n=== ALERTES ===")
+        lines.extend(alerts)
 
-print("\n=== FLOP MOMENTUM ===")
+    body = "\n".join(lines)
+    title = "Scan bourse - " + ("ALERTE" if alerts else "Récap horaire")
 
-for r in results[-5:]:
-    print(
-        f"{r['name']} | {r['ticker']} | {r['move']:.2f}%"
-    )
+    send_mail(title, body)
+    print("\n=== MAIL ENVOYÉ ===")
 
-print("\n=== FIN DU SCAN ===")
+
+if __name__ == "__main__":
+    main()
