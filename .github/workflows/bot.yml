@@ -9,7 +9,6 @@ import yfinance as yf
 
 TICKERS = {
     "STM": "STMicroelectronics",
-    "SU.PA": "Schneider Electric",
     "AIR.PA": "Airbus",
     "HO.PA": "Thales",
     "CAP.PA": "Capgemini",
@@ -20,8 +19,6 @@ TICKERS = {
     "GLE.PA": "Société Générale",
     "SOI.PA": "Soitec",
     "EXA.PA": "Exail Technologies",
-    "TEP.PA": "Teleperformance",
-    "OVH.PA": "OVHcloud",
     "VLA.PA": "Valneva",
 }
 
