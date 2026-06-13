@@ -23,8 +23,6 @@ TICKERS = {
     "OVH.PA": "OVHcloud",
     "VLA.PA": "Valneva"
 }
-}
-}
 
 # =========================
 # CALCUL VARIATION
