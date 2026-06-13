@@ -9,7 +9,7 @@ WATCHLIST = {
 }
 
 EMAIL = "tonmail@gmail.com"
-PASSWORD = "mot_de_passe_application_gmail"
+PASSWORD = "67efe38d28274a13ba421ada343855f1"
 
 def send_mail(title, body):
     msg = MIMEText(body)
