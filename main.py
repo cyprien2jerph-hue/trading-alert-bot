@@ -5,7 +5,6 @@ import yfinance as yf
 # =========================
 
 TICKERS = {
-    "SOI.PA": "Soitec",
     "STM": "STMicroelectronics",
     "2CRSI.PA": "2CRSi",
     "SU.PA": "Schneider Electric",
@@ -17,6 +16,13 @@ TICKERS = {
     "AI.PA": "Air Liquide",
     "SAF.PA": "Safran",
     "GLE.PA": "Société Générale"
+    "SOI.PA": "Soitec",
+    "STM": "STMicroelectronics",
+    "EXA.PA": "Exail Technologies",
+    "TEP.PA": "Teleperformance",
+    "OVH.PA": "OVHcloud",
+    "VLA.PA": "Valneva"
+}
 }
 }
 
