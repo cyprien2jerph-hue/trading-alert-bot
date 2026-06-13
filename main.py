@@ -23,9 +23,12 @@ TICKERS = {
 }
 
 THRESHOLDS = {
-    "STM": 5,
+    "STMPA.PA": 5,
     "SOI.PA": 5,
 }
+
+# Seuil pour la section "mouvement majeur" (alerte forte, sans recommandation)
+MAJOR_MOVE_THRESHOLD = 10
 
 RECAP_HOURS = [9, 18]
 
@@ -110,32 +113,74 @@ def save_history(results, now_paris):
             writer.writerow([timestamp, r["ticker"], r["name"], f"{r['price']:.2f}", f"{r['move']:.2f}"])
 
 
-def build_html(results, alerts, title_label):
+def build_html(results, alerts, major_moves, title_label):
     now = datetime.now(ZoneInfo("Europe/Paris")).strftime("%d/%m/%Y %H:%M")
 
-    rows = ""
+    # --- Bloc "mouvements majeurs" (en haut, très visible) ---
+    major_html = ""
+    if major_moves:
+        cards = ""
+        for r in major_moves:
+            move = r["move"]
+            grad = "linear-gradient(135deg, #22c55e, #16a34a)" if move > 0 else "linear-gradient(135deg, #ef4444, #dc2626)"
+            sens = "HAUSSE" if move > 0 else "BAISSE"
+            cards += f"""
+            <div style="background:{grad}; border-radius:12px; padding:16px; margin-bottom:10px; color:#fff;">
+              <div style="font-size:13px; font-weight:700; letter-spacing:1px; opacity:0.9;">🔥 MOUVEMENT MAJEUR — {sens}</div>
+              <div style="font-size:20px; font-weight:800; margin-top:4px;">{r['name']} ({r['ticker']})</div>
+              <div style="font-size:28px; font-weight:800; margin-top:6px;">{move:+.2f}%</div>
+              <div style="font-size:13px; opacity:0.9; margin-top:4px;">Prix actuel : {r['price']:.2f}</div>
+            </div>
+            """
+        major_html = f"""
+        <div style="margin:0 0 20px 0;">
+          {cards}
+        </div>
+        """
+
+    # --- Cards par action ---
+    cards_html = ""
     for r in results:
         move = r["move"]
-        color = "#16a34a" if move >= 0 else "#dc2626"
+        if move >= 3:
+            bg = "#dcfce7"
+            txt = "#15803d"
+        elif move >= 0:
+            bg = "#f0fdf4"
+            txt = "#22c55e"
+        elif move >= -3:
+            bg = "#fef2f2"
+            txt = "#f87171"
+        else:
+            bg = "#fee2e2"
+            txt = "#dc2626"
+
         arrow = "▲" if move >= 0 else "▼"
-        rows += f"""
-        <tr style="border-bottom:1px solid #eee;">
-          <td style="padding:10px 12px; font-weight:600;">{r['name']}</td>
-          <td style="padding:10px 12px; color:#888; font-size:13px;">{r['ticker']}</td>
-          <td style="padding:10px 12px; text-align:right;">{r['price']:.2f}</td>
-          <td style="padding:10px 12px; text-align:right; color:{color}; font-weight:700;">
-            {arrow} {move:+.2f}%
+
+        cards_html += f"""
+        <tr>
+          <td style="padding:6px 0;">
+            <div style="background:{bg}; border-radius:10px; padding:14px 16px; display:flex; justify-content:space-between; align-items:center;">
+              <div>
+                <div style="font-weight:700; color:#111827; font-size:15px;">{r['name']}</div>
+                <div style="color:#9ca3af; font-size:12px; margin-top:2px;">{r['ticker']} · {r['price']:.2f} €</div>
+              </div>
+              <div style="background:{txt}; color:#fff; border-radius:8px; padding:8px 14px; font-weight:800; font-size:15px; white-space:nowrap;">
+                {arrow} {move:+.2f}%
+              </div>
+            </div>
           </td>
         </tr>
         """
 
+    # --- Bloc alertes seuils ---
     alerts_html = ""
     if alerts:
         items = "".join(f"<li style='margin:4px 0;'>{a}</li>" for a in alerts)
         alerts_html = f"""
-        <div style="margin-top:24px; padding:16px; background:#fef3c7; border-left:4px solid #f59e0b; border-radius:6px;">
-          <strong style="color:#92400e;">⚠️ Alertes seuils dépassés</strong>
-          <ul style="margin:8px 0 0 0; padding-left:20px; color:#78350f;">
+        <div style="margin-top:20px; padding:16px; background:#fef9c3; border-radius:10px; border:2px solid #facc15;">
+          <strong style="color:#854d0e; font-size:14px;">⚡ Seuils dépassés</strong>
+          <ul style="margin:8px 0 0 0; padding-left:20px; color:#713f12; font-size:13px;">
             {items}
           </ul>
         </div>
@@ -146,32 +191,24 @@ def build_html(results, alerts, title_label):
       <head>
         <meta name="format-detection" content="telephone=no, date=no, address=no, email=no, url=no">
       </head>
-      <body style="margin:0; padding:0; background:#f4f4f7; font-family: -apple-system, Segoe UI, Roboto, Arial, sans-serif;">
-        <div style="max-width:600px; margin:0 auto; padding:24px;">
-          <div style="background:#ffffff; border-radius:10px; overflow:hidden; box-shadow:0 1px 3px rgba(0,0,0,0.08);">
-            <div style="background:#111827; padding:20px 24px;">
-              <h1 style="color:#fff; font-size:18px; margin:0;">📈 {title_label}</h1>
-              <p style="color:#9ca3af; font-size:13px; margin:4px 0 0 0;">{now}</p>
-            </div>
-            <div style="padding:0 24px;">
-              <table style="width:100%; border-collapse:collapse; margin-top:8px;">
-                <thead>
-                  <tr style="text-align:left; font-size:12px; color:#9ca3af; text-transform:uppercase;">
-                    <th style="padding:10px 12px;">Société</th>
-                    <th style="padding:10px 12px;">Ticker</th>
-                    <th style="padding:10px 12px; text-align:right;">Prix</th>
-                    <th style="padding:10px 12px; text-align:right;">Variation</th>
-                  </tr>
-                </thead>
-                <tbody>
-                  {rows}
-                </tbody>
-              </table>
-              {alerts_html}
-            </div>
-            <div style="padding:16px 24px; text-align:center;">
-              <p style="font-size:11px; color:#9ca3af; margin:0;">Bot automatique · GitHub Actions</p>
-            </div>
+      <body style="margin:0; padding:0; background:#f3f4f6; font-family: -apple-system, Segoe UI, Roboto, Arial, sans-serif;">
+        <div style="max-width:600px; margin:0 auto; padding:20px;">
+          <div style="background:linear-gradient(135deg, #6366f1, #8b5cf6); border-radius:16px; padding:24px; margin-bottom:16px; color:#fff;">
+            <div style="font-size:22px; font-weight:800;">📊 {title_label}</div>
+            <div style="font-size:13px; opacity:0.85; margin-top:4px;">{now}</div>
+          </div>
+
+          {major_html}
+
+          <div style="background:#ffffff; border-radius:16px; padding:16px; box-shadow:0 2px 8px rgba(0,0,0,0.06);">
+            <table style="width:100%; border-collapse:collapse;">
+              {cards_html}
+            </table>
+            {alerts_html}
+          </div>
+
+          <div style="text-align:center; padding:16px;">
+            <p style="font-size:11px; color:#9ca3af; margin:0;">Bot automatique · GitHub Actions</p>
           </div>
         </div>
       </body>
@@ -187,6 +224,7 @@ def main():
     now_paris = datetime.now(ZoneInfo("Europe/Paris"))
     results = []
     alerts = []
+    major_moves = []
 
     print("=== SCAN CAC / EURONEXT ===")
 
@@ -204,18 +242,22 @@ def main():
             direction = "hausse" if move > 0 else "baisse"
             alerts.append(f"{name} ({ticker}) en {direction} de {move:.2f}%")
 
+        if abs(move) >= MAJOR_MOVE_THRESHOLD:
+            major_moves.append({"ticker": ticker, "name": name, "move": move, "price": price})
+
     results.sort(key=lambda x: x["move"], reverse=True)
 
     save_history(results, now_paris)
 
     recap = is_recap_time()
 
-    if alerts:
-        html_body = build_html(results, alerts, "Scan Bourse FR")
-        send_mail("📈 ALERTE — Scan bourse", html_body)
+    if alerts or major_moves:
+        html_body = build_html(results, alerts, major_moves, "Scan Bourse FR")
+        title = "🔥 MOUVEMENT MAJEUR" if major_moves else "📈 ALERTE — Scan bourse"
+        send_mail(title, html_body)
         print("\n=== MAIL ALERTE ENVOYÉ ===")
     elif recap:
-        html_body = build_html(results, alerts, "Récap quotidien — Scan Bourse FR")
+        html_body = build_html(results, alerts, major_moves, "Récap quotidien — Scan Bourse FR")
         send_mail("📊 Récap quotidien — Scan bourse", html_body)
         print("\n=== MAIL RECAP ENVOYÉ ===")
     else:
