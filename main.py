@@ -1,98 +1,82 @@
 import yfinance as yf
-import pandas as pd
-import os
-import smtplib
-from email.mime.text import MIMEText
 
 # =========================
-# CONFIG
+# UNIVERS CAC 40 / FRANCE
 # =========================
 
-WATCHLIST = {
-    "NVDA": 3,
-    "STM.PA": 4,
-    "SOI.PA": 5,
-    "ASML.AS": 3,
-    "SU.PA": 3  # Schneider Electric
+TICKERS = {
+    "STMPA.PA": "STMicroelectronics",
+    "SOI.PA": "Soitec",
+    "SU.PA": "Schneider Electric",
+    "AIR.PA": "Airbus",
+    "HO.PA": "Thales",
+    "CAP.PA": "Capgemini",
+    "OR.PA": "L'Oréal",
+    "MC.PA": "LVMH",
+    "AI.PA": "Air Liquide",
+    "SAF.PA": "Safran"
 }
 
-EMAIL_USER = os.getenv("EMAIL_USER")
-EMAIL_PASS = os.getenv("EMAIL_PASS")
-EMAIL_TO = os.getenv("EMAIL_TO")
-
-USE_EMAIL = EMAIL_USER is not None and EMAIL_PASS is not None
-
 # =========================
-# EMAIL
-# =========================
-
-def send_mail(subject, body):
-    if not USE_EMAIL:
-        print("[EMAIL DISABLED]")
-        print(subject)
-        print(body)
-        return
-
-    msg = MIMEText(body)
-    msg["Subject"] = subject
-    msg["From"] = EMAIL_USER
-    msg["To"] = EMAIL_TO
-
-    with smtplib.SMTP_SSL("smtp.gmail.com", 465) as smtp:
-        smtp.login(EMAIL_USER, EMAIL_PASS)
-        smtp.send_message(msg)
-
-# =========================
-# DATA
+# CALCUL VARIATION
 # =========================
 
 def get_daily_move(ticker):
-    try:
-        data = yf.download(ticker, period="5d", interval="1d", progress=False)
+    data = yf.download(ticker, period="2d", interval="1d", progress=False)
 
-        if data is None or len(data) < 2:
-            print(f"{ticker} -> pas assez de data")
-            return None
-
-        prev = data["Close"].iloc[-2]
-        last = data["Close"].iloc[-1]
-
-        change = ((last - prev) / prev) * 100
-
-        return float(change)
-
-    except Exception as e:
-        print(f"{ticker} erreur:", e)
+    if data is None or len(data) < 2:
         return None
 
+    prev = data["Close"].iloc[-2]
+    last = data["Close"].iloc[-1]
+
+    return ((last - prev) / prev) * 100
+
 # =========================
-# MAIN
+# SCAN DU MARCHE
 # =========================
 
-print("=== BOT START ===")
+results = {}
 
-for ticker, threshold in WATCHLIST.items():
+print("=== SCAN CAC 40 MOMENTUM ===")
+
+for ticker, name in TICKERS.items():
 
     move = get_daily_move(ticker)
 
     if move is None:
         continue
 
-    print(f"{ticker} : {move:.2f}%")
+    results[ticker] = (name, move)
 
-    if abs(move) >= threshold:
+    print(f"{name} ({ticker}) : {move:.2f}%")
 
-        direction = "HAUSSE" if move > 0 else "BAISSE"
+# =========================
+# RANKING
+# =========================
 
-        subject = f"[ALERTE] {ticker} {direction} {move:.2f}%"
-        body = f"""
-Ticker: {ticker}
-Direction: {direction}
-Variation: {move:.2f}%
+ranked = sorted(results.items(), key=lambda x: x[1][1], reverse=True)
 
-Stratégie: momentum daily
-"""
+print("\n=== TOP MOMENTUM ===")
 
-        send_mail(subject, body)
+for ticker, (name, move) in ranked:
+    print(f"{name} : {move:.2f}%")
 
-print("=== BOT END ===")
+# =========================
+# SIGNALS
+# =========================
+
+if len(ranked) > 0:
+
+    best_ticker, (best_name, best_move) = ranked[0]
+    worst_ticker, (worst_name, worst_move) = ranked[-1]
+
+    print("\n=== SIGNALS ===")
+
+    if best_move > 2:
+        print(f"🔥 LEADER DU JOUR : {best_name} ({best_move:.2f}%)")
+
+    if worst_move < -2:
+        print(f"⚠️ FAIBLE : {worst_name} ({worst_move:.2f}%)")
+
+print("\n=== END ===")
