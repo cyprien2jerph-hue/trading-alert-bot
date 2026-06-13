@@ -9,7 +9,6 @@ import yfinance as yf
 
 TICKERS = {
     "STM": "STMicroelectronics",
-    "SU.PA": "Schneider Electric",
     "AIR.PA": "Airbus",
     "HO.PA": "Thales",
     "CAP.PA": "Capgemini",
@@ -20,8 +19,6 @@ TICKERS = {
     "GLE.PA": "Société Générale",
     "SOI.PA": "Soitec",
     "EXA.PA": "Exail Technologies",
-    "TEP.PA": "Teleperformance",
-    "OVH.PA": "OVHcloud",
     "VLA.PA": "Valneva",
 }
 
@@ -30,7 +27,6 @@ THRESHOLDS = {
     "SOI.PA": 5,
 }
 
-# Heures (Paris) du récap complet quotidien
 RECAP_HOURS = [9, 18]
 
 HISTORY_FILE = "history.csv"
@@ -41,7 +37,6 @@ EMAIL_PASS = os.environ["EMAIL_PASS"]
 
 
 def is_market_hours():
-    """Retourne False entre 21h et 5h, heure de Paris."""
     now_paris = datetime.now(ZoneInfo("Europe/Paris"))
     hour = now_paris.hour
     if hour >= 21 or hour < 5:
@@ -50,7 +45,6 @@ def is_market_hours():
 
 
 def is_recap_time():
-    """True si l'heure actuelle (Paris) correspond à une heure de récap (fenêtre de 30 min)."""
     now_paris = datetime.now(ZoneInfo("Europe/Paris"))
     return now_paris.hour in RECAP_HOURS and now_paris.minute < 30
 
@@ -89,12 +83,13 @@ def get_daily_move(ticker):
         if len(close) < 2:
             return None
 
-        prev = float(close.iloc[-2])
         last = float(close.iloc[-1])
+        prev = float(close.iloc[-2])
 
-        prev_date = close.index[-2].strftime("%d/%m")
-        last_date = close.index[-1].strftime("%d/%m")
-        print(f"{ticker}: comparaison {prev_date} -> {last_date}")
+        last_date = close.index[-1]
+        prev_date = close.index[-2]
+
+        print(f"{ticker}: comparaison {prev_date.strftime('%d/%m')} ({prev:.2f}) -> {last_date.strftime('%d/%m')} ({last:.2f})")
 
         return ((last - prev) / prev) * 100, last
     except Exception as e:
@@ -103,7 +98,6 @@ def get_daily_move(ticker):
 
 
 def save_history(results, now_paris):
-    """Ajoute une ligne par ticker dans history.csv"""
     file_exists = os.path.isfile(HISTORY_FILE)
 
     with open(HISTORY_FILE, "a", newline="", encoding="utf-8") as f:
@@ -149,6 +143,9 @@ def build_html(results, alerts, title_label):
 
     return f"""
     <html>
+      <head>
+        <meta name="format-detection" content="telephone=no, date=no, address=no, email=no, url=no">
+      </head>
       <body style="margin:0; padding:0; background:#f4f4f7; font-family: -apple-system, Segoe UI, Roboto, Arial, sans-serif;">
         <div style="max-width:600px; margin:0 auto; padding:24px;">
           <div style="background:#ffffff; border-radius:10px; overflow:hidden; box-shadow:0 1px 3px rgba(0,0,0,0.08);">
@@ -209,7 +206,6 @@ def main():
 
     results.sort(key=lambda x: x["move"], reverse=True)
 
-    # Sauvegarde dans l'historique à chaque exécution
     save_history(results, now_paris)
 
     recap = is_recap_time()
