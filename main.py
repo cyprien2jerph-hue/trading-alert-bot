@@ -28,9 +28,9 @@ THRESHOLDS = {
     "SOI.PA": 5,
 }
 
-EMAIL_FROM = os.environ["EMAIL_FROM"]
+EMAIL_FROM = os.environ["EMAIL_USER"]
 EMAIL_TO = os.environ["EMAIL_TO"]
-EMAIL_PASSWORD = os.environ["EMAIL_PASSWORD"]
+EMAIL_PASSWORD = os.environ["EMAIL_PASS"]
 
 
 def send_mail(title, body):
