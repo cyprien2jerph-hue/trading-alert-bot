@@ -1,12 +1,13 @@
 import yfinance as yf
 
 # =========================
-# UNIVERS CAC 40 / FRANCE
+# ACTIONS FRANÇAISES
 # =========================
 
 TICKERS = {
-    "STMPA.PA": "STMicroelectronics",
     "SOI.PA": "Soitec",
+    "STM": "STMicroelectronics",
+    "2CRSI.PA": "2CRSi",
     "SU.PA": "Schneider Electric",
     "AIR.PA": "Airbus",
     "HO.PA": "Thales",
@@ -14,7 +15,9 @@ TICKERS = {
     "OR.PA": "L'Oréal",
     "MC.PA": "LVMH",
     "AI.PA": "Air Liquide",
-    "SAF.PA": "Safran"
+    "SAF.PA": "Safran",
+    "GLE.PA": "Société Générale"
+}
 }
 
 # =========================
@@ -22,23 +25,36 @@ TICKERS = {
 # =========================
 
 def get_daily_move(ticker):
-    data = yf.download(ticker, period="2d", interval="1d", progress=False)
+    try:
+        data = yf.download(
+            ticker,
+            period="5d",
+            interval="1d",
+            progress=False,
+            auto_adjust=True
+        )
 
-    if data is None or len(data) < 2:
+        if data is None or len(data) < 2:
+            return None
+
+        close = data["Close"]
+
+        prev = float(close.iloc[-2])
+        last = float(close.iloc[-1])
+
+        return ((last - prev) / prev) * 100
+
+    except Exception as e:
+        print(f"Erreur sur {ticker} : {e}")
         return None
 
-    prev = data["Close"].iloc[-2]
-    last = data["Close"].iloc[-1]
-
-    return ((last - prev) / prev) * 100
-
 # =========================
-# SCAN DU MARCHE
+# SCAN
 # =========================
 
-results = {}
+results = []
 
-print("=== SCAN CAC 40 MOMENTUM ===")
+print("=== SCAN CAC / EURONEXT ===")
 
 for ticker, name in TICKERS.items():
 
@@ -47,36 +63,32 @@ for ticker, name in TICKERS.items():
     if move is None:
         continue
 
-    results[ticker] = (name, move)
+    results.append({
+        "ticker": ticker,
+        "name": name,
+        "move": move
+    })
 
     print(f"{name} ({ticker}) : {move:.2f}%")
 
 # =========================
-# RANKING
+# CLASSEMENT
 # =========================
 
-ranked = sorted(results.items(), key=lambda x: x[1][1], reverse=True)
+results.sort(key=lambda x: x["move"], reverse=True)
 
 print("\n=== TOP MOMENTUM ===")
 
-for ticker, (name, move) in ranked:
-    print(f"{name} : {move:.2f}%")
+for r in results[:5]:
+    print(
+        f"{r['name']} | {r['ticker']} | {r['move']:.2f}%"
+    )
 
-# =========================
-# SIGNALS
-# =========================
+print("\n=== FLOP MOMENTUM ===")
 
-if len(ranked) > 0:
+for r in results[-5:]:
+    print(
+        f"{r['name']} | {r['ticker']} | {r['move']:.2f}%"
+    )
 
-    best_ticker, (best_name, best_move) = ranked[0]
-    worst_ticker, (worst_name, worst_move) = ranked[-1]
-
-    print("\n=== SIGNALS ===")
-
-    if best_move > 2:
-        print(f"🔥 LEADER DU JOUR : {best_name} ({best_move:.2f}%)")
-
-    if worst_move < -2:
-        print(f"⚠️ FAIBLE : {worst_name} ({worst_move:.2f}%)")
-
-print("\n=== END ===")
+print("\n=== FIN DU SCAN ===")
